@@ -2,25 +2,31 @@ import React, { useState } from "react";
 import { useTileSimulator } from "../context/TileSimulatorContext";
 
 const ColorEditor = ({ tile }) => {
-  const { setTileMaskColor, tileMasks } = useTileSimulator();
+  const { setTileMaskColor, tileMasks, selectedBorder, setSelectedBorder } = useTileSimulator();
   const [hoveredPaletteColor, setHoveredPaletteColor] = useState(null);
   const [previewMode, setPreviewMode] = useState(false);
+
   // Track which mask is selected for editing
   const [selectedMaskId, setSelectedMaskId] = useState(
     tileMasks && tileMasks.length > 0 ? tileMasks[0].id : null
   );
 
-  if (!tile || !Array.isArray(tileMasks)) return null;
+  // Handle when a user selects a border
+  const handleBorderSelect = (borderImage) => {
+    if (selectedBorder === borderImage) {
+      setSelectedBorder(null); // Remove border if already selected
+    } else {
+      setSelectedBorder(borderImage); // Set the selected border
+    }
+  };
 
-  // All unique available colors from all masks
+  // Get all unique available colors from masks
   const allAvailableColors = Array.from(
     new Set(tileMasks.flatMap((mask) => mask.availableColors || []))
   );
-  
-  // The currently selected mask object
+
   const selectedMask = tileMasks.find((mask) => mask.id === selectedMaskId);
 
-  // When a palette color is clicked, update only the selected mask
   const handlePaletteColorSelect = (paletteColor) => {
     if (!selectedMask) return;
     setTileMaskColor(selectedMask.id, paletteColor);
@@ -28,7 +34,6 @@ const ColorEditor = ({ tile }) => {
     setHoveredPaletteColor(null);
   };
 
-  // For preview: if previewMode, show hoveredPaletteColor for selected mask only
   const getMaskColor = (mask) => {
     if (
       previewMode &&
@@ -41,14 +46,12 @@ const ColorEditor = ({ tile }) => {
     return mask.color;
   };
 
-  // When a mask layer is clicked, select it
   const handleMaskLayerClick = (maskId) => {
     setSelectedMaskId(maskId);
     setPreviewMode(false);
     setHoveredPaletteColor(null);
   };
 
-  // When a color in "Colors Used" is clicked, select the first mask with that color
   const handleColorUsedClick = (color) => {
     const maskWithColor = tileMasks.find((mask) => mask.color === color);
     if (maskWithColor) {
@@ -56,7 +59,6 @@ const ColorEditor = ({ tile }) => {
     }
   };
 
-  // The color of the selected mask (for highlighting in palette and 'Colors Used')
   const selectedMaskColor = selectedMask ? selectedMask.color : null;
 
   return (
@@ -66,42 +68,86 @@ const ColorEditor = ({ tile }) => {
         <h4 className="text-md font-medium mb-2">Editing Tile: {tile.name}</h4>
         {/* Tile Preview */}
         <div className="mb-4 aspect-square max-w-xs mx-auto relative">
-          <img
-            src={tile.image}
-            alt={tile.name}
-            className="absolute inset-0 w-full h-full object-cover rounded-lg"
-          />
-          {tileMasks.map((mask) => (
-            <div
-              key={mask?.id}
-              className={`absolute inset-0 cursor-pointer ${
-                selectedMaskId === mask?.id ? "ring-2 ring-primary" : ""
-              }`}
-              onClick={() => handleMaskLayerClick(mask?.id)}
-              style={{
-                backgroundColor: getMaskColor(mask),
-                maskImage: `url(${mask?.image})`,
-                WebkitMaskImage: `url(${mask?.image})`,
-                maskSize: "cover",
-                WebkitMaskSize: "cover",
-                maskPosition: "center",
-                WebkitMaskPosition: "center",
-                maskRepeat: "no-repeat",
-                WebkitMaskRepeat: "no-repeat",
-                opacity: 1,
-                pointerEvents: "auto",
-                transition: "all 0.3s ease",
-                outline:
-                  selectedMaskId === mask?.id ? "2px solid #3B82F6" : "none",
-                boxShadow:
-                  selectedMaskId === mask?.id
-                    ? "0 0 0 2px #3B82F6, 0 2px 8px rgba(59,130,246,0.1)"
-                    : "none",
-              }}
-              title={`Select ${mask?.name}`}
+          {/* Wrapper for the image and border */}
+          <div
+            className="relative w-full h-full"
+            style={{
+              width: "100%",
+              height: "100%",
+              borderRadius: "10px",
+              overflow: "hidden",
+              backgroundColor: "transparent"
+            }}
+          >
+            {/* Border Mask as overlay (only if selected) */}
+            {selectedBorder && (
+              <img
+                src={selectedBorder}
+                alt="Selected Border"
+                className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+                style={{
+                  // borderRadius: "10px",
+                  zIndex: 2,
+                  objectFit: "cover",
+                  // Remove padding!
+                }}
+              />
+            )}
+
+            {/* Tile Image (under the border) */}
+            <img
+              src={tile.image}
+              alt={tile.name}
+              className="absolute"
+              style={
+                selectedBorder
+                  ? {
+                    width: "55%",
+                    height: "60%",
+                    zIndex: 1,
+                    top: "19%",
+                    left: "21%",
+                    // right:"30%",
+                    position: "absolute",
+                    objectFit: "contain",
+                  }
+                  : {
+                    width: "100%",
+                    height: "100%",
+                    zIndex: 1,
+                    top: 0,
+                    left: 0,
+                    position: "absolute",
+                    objectFit: "contain", 
+                  }
+              }
             />
-          ))}
+          </div>
         </div>
+
+        {/* Border Selection */}
+        <div className="mt-4">
+          <h4 className="text-md font-medium mb-2">Select a Border</h4>
+          <div className="flex gap-2">
+            {/* Your list of available borders */}
+            {[
+              "/Images/borders/Main-Border.png",
+            ].map((border, index) => (
+              <button
+              key={index}
+              onClick={() => handleBorderSelect(border)}
+              className={`border-2 p-2 ${selectedBorder === border ? "border-blue-500 ring-2 ring-blue-300" : ""}`}
+            >
+              <img
+                src={border}
+                alt={`Border ${index + 1}`}
+                className="w-16 h-16 object-cover"
+              />
+            </button>
+            ))}
+          </div>
+        </div>
+
         {/* Colors Used */}
         <div className="mb-4">
           <h4 className="font-medium mb-2">Colors Used</h4>
@@ -109,11 +155,10 @@ const ColorEditor = ({ tile }) => {
             {(tile.colorsUsed || []).map((color, index) => (
               <button
                 key={`color-used-${index}-${color}`}
-                className={`w-8 h-8 rounded-full border-2 transition-all focus:outline-none focus:ring-2 focus:ring-primary ${
-                  selectedMaskColor === color
-                    ? "border-black ring-2 ring-offset-2 ring-primary"
-                    : "border-gray-200 hover:border-primary"
-                }`}
+                className={`w-8 h-8 rounded-full border-2 transition-all focus:outline-none focus:ring-2 focus:ring-primary ${selectedMaskColor === color
+                  ? "border-black ring-2 ring-offset-2 ring-primary"
+                  : "border-gray-200 hover:border-primary"
+                  }`}
                 style={{ backgroundColor: color }}
                 title={color}
                 onClick={() => handleColorUsedClick(color)}
@@ -121,16 +166,16 @@ const ColorEditor = ({ tile }) => {
             ))}
           </div>
         </div>
+
         {/* Unified Color Palette */}
         <div className="w-full flex flex-wrap justify-center gap-2 bg-gray-100 rounded-lg p-2 shadow-inner">
           {allAvailableColors.map((paletteColor, index) => (
             <button
               key={`palette-color-${index}-${paletteColor}`}
-              className={`w-8 h-8 rounded-full border-2 transition-all transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-primary ${
-                selectedMaskColor === paletteColor
-                  ? "border-black ring-2 ring-offset-2 ring-primary"
-                  : "border-transparent hover:border-gray-400"
-              }`}
+              className={`w-8 h-8 rounded-full border-2 transition-all transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-primary ${selectedMaskColor === paletteColor
+                ? "border-black ring-2 ring-offset-2 ring-primary"
+                : "border-transparent hover:border-gray-400"
+                }`}
               style={{ backgroundColor: paletteColor }}
               title={paletteColor}
               onClick={() => handlePaletteColorSelect(paletteColor)}
